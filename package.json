@@ -14,6 +14,7 @@
   "dependencies": {
     "@libsql/client": "^0.17.4",
     "@supadata/js": "^1.4.0",
+    "@vercel/functions": "^3.9.3",
     "cheerio": "^1.2.0",
     "devalue": "^5.9.0",
     "next": "16.3.1",

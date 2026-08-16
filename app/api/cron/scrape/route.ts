@@ -1,5 +1,6 @@
+import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse } from "next/server";
-import { runScrape } from "@/lib/scraper/run";
+import { reserveScrapeRun, runScrape } from "@/lib/scraper/run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,14 +20,33 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    return NextResponse.json(await runScrape());
-  } catch (error) {
-    console.error("Scrape run failed", error);
+    const plan = await reserveScrapeRun();
+    waitUntil(
+      runScrape(plan).catch((error) => {
+        console.error("Background cron scrape run failed", error);
+      }),
+    );
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Unknown scrape run error",
+        accepted: true,
+        runId: plan.runId,
+        source: plan.source,
+        page: plan.source === "BROWSE_NEW" ? plan.page : null,
       },
+      { status: 202 },
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not start scraper";
+    if (message === "A scrape run is already in progress") {
+      return NextResponse.json(
+        { error: "Scraper is already running" },
+        { status: 409 },
+      );
+    }
+    console.error("Could not start background cron scrape run", error);
+    return NextResponse.json(
+      { error: "Could not start scraper" },
       { status: 500 },
     );
   }
